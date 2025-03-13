@@ -17,6 +17,7 @@
 
 int num_threads;
 int num_processors;
+int num_bands;
 
 //array for each thread
 pthread_t* threadIDs;
@@ -30,7 +31,7 @@ typedef struct {
     int bandNum;
     int filter_order;
     double bandwidth;
-    double* power;
+    double*  power; //pointer to a part in the final band_power array
 } ThreadData;
 
 
@@ -40,12 +41,13 @@ void* worker(void* arg) {
 
 
 
+
     if (!filter_coeffs){
         perror("Memory allocation failed for filter_coeffs");
         pthread_exit(NULL);
     }
 
-
+    //set processor 
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(data->bandNum % num_processors, &set);
@@ -56,18 +58,39 @@ void* worker(void* arg) {
         pthread_exit(NULL);
     }
 
-    generate_band_pass(data->sig->Fs,data->bandNum * data->bandwidth + 0.0001,
-                        (data->bandNum + 1) * data->bandwidth - 0.0001,
-                        data->filter_order, filter_coeffs);
-    hamming_window(data->filter_order, filter_coeffs);
+    int bandNum = data->bandNum;
+    int blocksize = num_bands/num_threads;
 
-    convolve_and_compute_power(data->sig->num_samples,
-                               data->sig->data,
-                               data->filter_order,
-                               filter_coeffs,
-                               &(data->power[data->bandNum]));
+    //figuring out chunk of band to work on based on band number
+    int mystart = bandNum * blocksize;
+    int myend = 0;
+
+
+    if (bandNum == (num_threads - 1)){
+        //additional space for end if leftover
+        myend = mystart + blocksize + (num_bands % num_threads);
+    } else {
+        myend = mystart + blocksize;
+    }
+
+
+    //getting power values for each band block
+
+    for (int i = mystart; i < myend; i++){
+        generate_band_pass(data->sig->Fs, i * data->bandwidth + 0.0001,
+                           (i + 1) * data->bandwidth - 0.0001,
+                           data->filter_order, filter_coeffs);
+        hamming_window(data->filter_order, filter_coeffs);
+
+        convolve_and_compute_power(data->sig->num_samples,
+                                   data->sig->data,
+                                   data->filter_order,
+                                   filter_coeffs,
+                                   &(data->power[i]));
+    }
 
     free(filter_coeffs);
+    free(data);
     pthread_exit(NULL);
 }
 
@@ -95,11 +118,20 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
 
 
-    double band_power[num_bands];
+    // double band_power[num_bands];
     // pthread_t* threadIDs[num_bands];  //add
+    
+    //initialize to inputed num of bands
+    //holds each thread params for each thread & computed power
     thread_data = (ThreadData*) malloc(sizeof(ThreadData) * num_bands);
+    
+    //pthread ids
     threadIDs = (pthread_t*) malloc(sizeof(pthread_t) * num_threads);
     
+
+
+
+    double band_power[num_bands];
 
     // parallelize for each band
     for (int i = 0; i < num_threads; i++) {
@@ -109,6 +141,10 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
         t_data->sig = sig;
         t_data->bandNum = i;
         t_data->power = band_power;
+        t_data->bandwidth = bandwidth;
+        t_data->filter_order = filter_order;
+
+        // t_data->power = band_power;
 
         int ret_code = pthread_create(&(threadIDs[i]), NULL, worker, (void*) t_data);
         if (ret_code != 0){
@@ -220,7 +256,7 @@ int main(int argc, char* argv[]) {
     char* sig_file = argv[2];
     double Fs = atof(argv[3]);
     int filter_order = atoi(argv[4]);
-    int num_bands = atoi(argv[5]);
+    num_bands = atoi(argv[5]);
     num_threads = atoi(argv[6]);
     num_processors = atoi(argv[7]);
 
