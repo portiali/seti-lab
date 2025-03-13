@@ -17,9 +17,14 @@
 
 int num_threads;
 int num_processors;
+
+//array for each thread
 pthread_t* threadIDs;
+
+//array holding params for each thread
 ThreadData* thread_data;
 
+//params for each thread 
 typedef struct {
     signal* sig;
     int bandNum;
@@ -33,8 +38,21 @@ void* worker(void* arg) {
     ThreadData* data = (ThreadData*) arg;
     double* filter_coeffs = (double*) malloc((data->filter_order+1)* sizeof(double));
 
+
+
     if (!filter_coeffs){
         perror("Memory allocation failed for filter_coeffs");
+        pthread_exit(NULL);
+    }
+
+
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    CPU_SET(data->bandNum % num_processors, &set);
+    if (sched_setaffinity(0, sizeof(set), &set) < 0)
+    {
+        perror("Can't set affinity");
+        free(filter_coeffs);
         pthread_exit(NULL);
     }
 
@@ -183,6 +201,13 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
     return wow;
 }
+
+
+
+
+
+
+
 
 
 int main(int argc, char* argv[]) {
