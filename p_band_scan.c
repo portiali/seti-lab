@@ -1,9 +1,12 @@
-#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <ctype.h>
 
+#include <sched.h>   // for processor affinity
+#include <unistd.h>  // unix standard apis
+#include <pthread.h> // pthread api
 
 #include "filter.h"
 #include "signal.h"
@@ -22,8 +25,8 @@ int num_bands;
 //array for each thread
 pthread_t* threadIDs;
 
-//array holding params for each thread
-ThreadData* thread_data;
+// //array holding params for each thread
+// ThreadData* thread_data;
 
 //params for each thread 
 typedef struct {
@@ -34,6 +37,55 @@ typedef struct {
     double*  power; //pointer to a part in the final band_power array
 } ThreadData;
 
+double avg_power(double *data, int num)
+{
+
+    double ss = 0;
+    for (int i = 0; i < num; i++)
+    {
+        ss += data[i] * data[i];
+    }
+
+    return ss / num;
+}
+
+double max_of(double *data, int num)
+{
+
+    double m = data[0];
+    for (int i = 1; i < num; i++)
+    {
+        if (data[i] > m)
+        {
+            m = data[i];
+        }
+    }
+    return m;
+}
+
+double avg_of(double *data, int num)
+{
+
+    double s = 0;
+    for (int i = 0; i < num; i++)
+    {
+        s += data[i];
+    }
+    return s / num;
+}
+
+void remove_dc(double *data, int num)
+{
+
+    double dc = avg_of(data, num);
+
+    printf("Removing DC component of %lf\n", dc);
+
+    for (int i = 0; i < num; i++)
+    {
+        data[i] -= dc;
+    }
+}
 
 void* worker(void* arg) {
     ThreadData* data = (ThreadData*) arg;
@@ -123,7 +175,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
     
     //initialize to inputed num of bands
     //holds each thread params for each thread & computed power
-    thread_data = (ThreadData*) malloc(sizeof(ThreadData) * num_bands);
+    // thread_data = (ThreadData*) malloc(sizeof(ThreadData) * num_bands);
     
     //pthread ids
     threadIDs = (pthread_t*) malloc(sizeof(pthread_t) * num_threads);
@@ -214,32 +266,29 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
         printf("\n");
     }
 
-    printf("Resource usages:\n\
-        User time        %lf seconds\n\
-        System time      %lf seconds\n\
-        Page faults      %ld\n\
-        Page swaps       %ld\n\
-        Blocks of I/O    %ld\n\
-        Signals caught   %ld\n\
-        Context switches %ld\n",
-           rdiff.usertime,
-           rdiff.systime,
-           rdiff.pagefaults,
-           rdiff.pageswaps,
-           rdiff.ioblocks,
-           rdiff.sigs,
-           rdiff.contextswitches);
+    // printf("Resource usages:\n\
+    //     User time        %lf seconds\n\
+    //     System time      %lf seconds\n\
+    //     Page faults      %ld\n\
+    //     Page swaps       %ld\n\
+    //     Blocks of I/O    %ld\n\
+    //     Signals caught   %ld\n\
+    //     Context switches %ld\n",
+    //        rdiff.usertime,
+    //        rdiff.systime,
+    //        rdiff.pagefaults,
+    //        rdiff.pageswaps,
+    //        rdiff.ioblocks,
+    //        rdiff.sigs,
+    //        rdiff.contextswitches);
 
-    printf("Analysis took %llu cycles (%lf seconds) by cycle count, timing overhead=%llu cycles\n"
-           "Note that cycle count only makes sense if the thread stayed on one core\n",
-           tend - tstart, cycles_to_seconds(tend - tstart), timing_overhead());
-    printf("Analysis took %lf seconds by basic timing\n", end - start);
+    // printf("Analysis took %llu cycles (%lf seconds) by cycle count, timing overhead=%llu cycles\n"
+    //        "Note that cycle count only makes sense if the thread stayed on one core\n",
+    //        tend - tstart, cycles_to_seconds(tend - tstart), timing_overhead());
+    // printf("Analysis took %lf seconds by basic timing\n", end - start);
 
     return wow;
 }
-
-
-
 
 
 
