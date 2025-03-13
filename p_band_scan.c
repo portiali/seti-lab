@@ -16,18 +16,19 @@
 
 typedef struct {
     signal* sig;
-    int band;
+    int bandNum;
     int filter_order;
     double bandwidth;
-    double* band_power;
+    double* power;
 } ThreadData;
 
 
 void* worker(void* arg) {
     ThreadData* data = (ThreadData*) arg;
-    double* filter_coeffs = generate_band_pass(data->sig->Fs,
-                                               data->band * data->bandwidth + 0.0001,
-                                               (data->band + 1) * data->bandwidth - 0.0001,
+    
+    generate_band_pass(data->sig->Fs,
+                                               data->bandNum * data->bandwidth + 0.0001,
+                                               (data->bandNum + 1) * data->bandwidth - 0.0001,
                                                data->filter_order, filter_coeffs);
     hamming_window(data->filter_order, filter_coeffs);
 
@@ -35,7 +36,7 @@ void* worker(void* arg) {
                                data->sig->data,
                                data->filter_order,
                                filter_coeffs,
-                               &(data->band_power[data->band]));
+                               &(data->power[data->bandNum]));
 
     // free(filter_coeffs);
     pthread_exit(NULL);
@@ -74,22 +75,23 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
     
 
     for (int i = 0; i < num_threads; i++) {
+        ThreadData* t_data = malloc(sizeof(ThreadData));
+        
+        //set struct fields
+        t_data->sig = sig;
+        t_data->bandNum = i;
+        t_data->power = band_power;
 
-    //set struct fields
-    params->sig = sig;
-    params->myid = i;
-    params->power = band_power;
-
-    int ret_code = pthread_create(&(tid[i]), NULL, worker, (void*) params);
-    if (ret_code != 0){
-        perror("Failed thread start")
-        exit(-1);
-    }
+        int ret_code = pthread_create(&(threadIDs[i]), NULL, worker, (void*) t_data);
+        if (ret_code != 0){
+            perror("Failed thread start");
+            exit(-1);
+        }
     }
     
     //join all threads
     for (int i =0; i<num_threads; i++){
-    int ret_code=pthread_join(tid[i], NULL);
+    int ret_code=pthread_join(threadIDs[i], NULL);
 
     if (ret_code !=0){
         perror("join failed");
@@ -99,39 +101,39 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 }
 
 
-int main(int argc, char* argv[]) {
-    if (argc != 6) {
-        printf("Usage: p_band_scan text|bin|mmap signal_file Fs filter_order num_bands\n");
-        return -1;
-    }
+// int main(int argc, char* argv[]) {
+//     if (argc != 6) {
+//         printf("Usage: p_band_scan text|bin|mmap signal_file Fs filter_order num_bands\n");
+//         return -1;
+//     }
 
-    char sig_type = toupper(argv[1][0]);
-    char* sig_file = argv[2];
-    double Fs = atof(argv[3]);
-    int filter_order = atoi(argv[4]);
-    int num_bands = atoi(argv[5]);
+//     char sig_type = toupper(argv[1][0]);
+//     char* sig_file = argv[2];
+//     double Fs = atof(argv[3]);
+//     int filter_order = atoi(argv[4]);
+//     int num_bands = atoi(argv[5]);
 
-    signal* sig;
-    switch (sig_type) {
-        case 'T': sig = load_text_format_signal(sig_file); break;
-        case 'B': sig = load_binary_format_signal(sig_file); break;
-        case 'M': sig = map_binary_format_signal(sig_file); break;
-        default: printf("Unknown signal type\n"); return -1;
-    }
+//     signal* sig;
+//     switch (sig_type) {
+//         case 'T': sig = load_text_format_signal(sig_file); break;
+//         case 'B': sig = load_binary_format_signal(sig_file); break;
+//         case 'M': sig = map_binary_format_signal(sig_file); break;
+//         default: printf("Unknown signal type\n"); return -1;
+//     }
 
-    if (!sig) {
-        printf("Unable to load or map file\n");
-        return -1;
-    }
-    sig->Fs = Fs;
+//     if (!sig) {
+//         printf("Unable to load or map file\n");
+//         return -1;
+//     }
+//     sig->Fs = Fs;
 
-    double start = 0, end = 0;
-    if (analyze_signal(sig, filter_order, num_bands, &start, &end)) {
-        printf("POSSIBLE ALIENS %lf-%lf HZ (CENTER %lf HZ)\n", start, end, (end + start) / 2.0);
-    } else {
-        printf("no aliens\n");
-    }
+//     double start = 0, end = 0;
+//     if (analyze_signal(sig, filter_order, num_bands, &start, &end)) {
+//         printf("POSSIBLE ALIENS %lf-%lf HZ (CENTER %lf HZ)\n", start, end, (end + start) / 2.0);
+//     } else {
+//         printf("no aliens\n");
+//     }
 
-    free_signal(sig);
-    return 0;
-}
+//     free_signal(sig);
+//     return 0;
+// }
