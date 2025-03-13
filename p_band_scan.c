@@ -1,3 +1,5 @@
+
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -142,20 +144,9 @@ void* worker(void* arg) {
     }
 
     free(filter_coeffs);
-    free(data);
     pthread_exit(NULL);
 }
 
-void remove_dc(double* data, int num) {
-
-    double dc = avg_of(data,num);
-  
-    printf("Removing DC component of %lf\n",dc);
-  
-    for (int i = 0; i < num; i++) {
-      data[i] -= dc;
-    }
-  }
 
 
 int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, double* ub) {
@@ -167,8 +158,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
     double signal_power = avg_power(sig->data, sig->num_samples);
 
-
-
+    printf("signal average power:     %lf\n", signal_power);
 
     // double band_power[num_bands];
     // pthread_t* threadIDs[num_bands];  //add
@@ -266,26 +256,26 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
         printf("\n");
     }
 
-    // printf("Resource usages:\n\
-    //     User time        %lf seconds\n\
-    //     System time      %lf seconds\n\
-    //     Page faults      %ld\n\
-    //     Page swaps       %ld\n\
-    //     Blocks of I/O    %ld\n\
-    //     Signals caught   %ld\n\
-    //     Context switches %ld\n",
-    //        rdiff.usertime,
-    //        rdiff.systime,
-    //        rdiff.pagefaults,
-    //        rdiff.pageswaps,
-    //        rdiff.ioblocks,
-    //        rdiff.sigs,
-    //        rdiff.contextswitches);
+    printf("Resource usages:\n\
+        User time        %lf seconds\n\
+        System time      %lf seconds\n\
+        Page faults      %ld\n\
+        Page swaps       %ld\n\
+        Blocks of I/O    %ld\n\
+        Signals caught   %ld\n\
+        Context switches %ld\n",
+           rdiff.usertime,
+           rdiff.systime,
+           rdiff.pagefaults,
+           rdiff.pageswaps,
+           rdiff.ioblocks,
+           rdiff.sigs,
+           rdiff.contextswitches);
 
-    // printf("Analysis took %llu cycles (%lf seconds) by cycle count, timing overhead=%llu cycles\n"
-    //        "Note that cycle count only makes sense if the thread stayed on one core\n",
-    //        tend - tstart, cycles_to_seconds(tend - tstart), timing_overhead());
-    // printf("Analysis took %lf seconds by basic timing\n", end - start);
+    printf("Analysis took %llu cycles (%lf seconds) by cycle count, timing overhead=%llu cycles\n"
+           "Note that cycle count only makes sense if the thread stayed on one core\n",
+           tend - tstart, cycles_to_seconds(tend - tstart), timing_overhead());
+    printf("Analysis took %lf seconds by basic timing\n", end - start);
 
     return wow;
 }
