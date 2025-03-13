@@ -14,6 +14,12 @@
 #define ALIENS_LOW  50000.0
 #define ALIENS_HIGH 150000.0
 
+
+int num_threads;
+int num_processors;
+pthread_t *threadIDs;
+ThreadData* thread_data;
+
 typedef struct {
     signal* sig;
     int bandNum;
@@ -74,8 +80,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
     double band_power[num_bands];
     // pthread_t* threadIDs[num_bands];  //add
-    pthread_t* threadIDs;  
-    ThreadData thread_data[num_bands]; 
+    thread_data = (ThreadData*) malloc(sizeof(ThreadData) * num_bands);
     threadIDs = (pthread_t*) malloc(sizeof(pthread_t) * num_threads);
     
 
@@ -192,6 +197,8 @@ int main(int argc, char* argv[]) {
     double Fs = atof(argv[3]);
     int filter_order = atoi(argv[4]);
     int num_bands = atoi(argv[5]);
+    num_threads = atoi(argv[6]);
+    num_processors = atoi(argv[7]);
 
     signal* sig;
     switch (sig_type) {
