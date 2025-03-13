@@ -17,7 +17,7 @@
 
 int num_threads;
 int num_processors;
-pthread_t *threadIDs;
+pthread_t* threadIDs;
 ThreadData* thread_data;
 
 typedef struct {
@@ -75,8 +75,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
     double signal_power = avg_power(sig->data, sig->num_samples);
 
 
-    // int num_threads;
-    // int num_processors;
+
 
     double band_power[num_bands];
     // pthread_t* threadIDs[num_bands];  //add
@@ -199,6 +198,10 @@ int main(int argc, char* argv[]) {
     int num_bands = atoi(argv[5]);
     num_threads = atoi(argv[6]);
     num_processors = atoi(argv[7]);
+
+    assert(Fs > 0.0);
+    assert(filter_order > 0 && !(filter_order & 0x1));
+    assert(num_bands > 0);
 
     signal* sig;
     switch (sig_type) {
