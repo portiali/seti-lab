@@ -25,11 +25,16 @@ typedef struct {
 
 void* worker(void* arg) {
     ThreadData* data = (ThreadData*) arg;
-    
-    generate_band_pass(data->sig->Fs,
-                                               data->bandNum * data->bandwidth + 0.0001,
-                                               (data->bandNum + 1) * data->bandwidth - 0.0001,
-                                               data->filter_order, filter_coeffs);
+    double* filter_coeffs = (double*) malloc((data->filter_order+1)* sizeof(double));
+
+    if (!filter_coeffs){
+        perror("Memory allocation failed for filter_coeffs");
+        pthread_exit(NULL);
+    }
+
+    generate_band_pass(data->sig->Fs,data->bandNum * data->bandwidth + 0.0001,
+                        (data->bandNum + 1) * data->bandwidth - 0.0001,
+                        data->filter_order, filter_coeffs);
     hamming_window(data->filter_order, filter_coeffs);
 
     convolve_and_compute_power(data->sig->num_samples,
@@ -38,7 +43,7 @@ void* worker(void* arg) {
                                filter_coeffs,
                                &(data->power[data->bandNum]));
 
-    // free(filter_coeffs);
+    free(filter_coeffs);
     pthread_exit(NULL);
 }
 
@@ -64,8 +69,8 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
     double signal_power = avg_power(sig->data, sig->num_samples);
 
 
-    int num_threads;
-    int num_processors;
+    // int num_threads;
+    // int num_processors;
 
     double band_power[num_bands];
     // pthread_t* threadIDs[num_bands];  //add
