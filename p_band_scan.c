@@ -74,11 +74,12 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
     double band_power[num_bands];
     // pthread_t* threadIDs[num_bands];  //add
-    pthread_t* threadIDs;  //add
-    ThreadData thread_data[num_bands]; //add
+    pthread_t* threadIDs;  
+    ThreadData thread_data[num_bands]; 
     threadIDs = (pthread_t*) malloc(sizeof(pthread_t) * num_threads);
     
 
+    // parallelize for each band
     for (int i = 0; i < num_threads; i++) {
         ThreadData* t_data = malloc(sizeof(ThreadData));
         
@@ -94,51 +95,125 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
         }
     }
     
-    //join all threads
+    //join all threads-- def correct
     for (int i =0; i<num_threads; i++){
-    int ret_code=pthread_join(threadIDs[i], NULL);
 
-    if (ret_code !=0){
-        perror("join failed");
-        exit(-1);
+        int ret_code = pthread_join(threadIDs[i], NULL);
+        if (ret_code !=0){
+            perror("join failed");
+            exit(-1);
+        }
     }
+
+    //all results are stored in thread_data structs
+
+    //analyze band reuslts
+
+    double max_band_power = max_of(band_power, num_bands);
+    double avg_band_power = avg_of(band_power, num_bands);
+    int wow = 0;
+    *lb = -1;
+    *ub = -1;
+
+    for (int band = 0; band < num_bands; band++)
+    {
+        double band_low = band * bandwidth + 0.0001;
+        double band_high = (band + 1) * bandwidth - 0.0001;
+
+        printf("%5d %20lf to %20lf Hz: %20lf ",
+               band, band_low, band_high, band_power[band]);
+
+        for (int i = 0; i < MAXWIDTH * (band_power[band] / max_band_power); i++)
+        {
+            printf("*");
+        }
+
+        if ((band_low >= ALIENS_LOW && band_low <= ALIENS_HIGH) ||
+            (band_high >= ALIENS_LOW && band_high <= ALIENS_HIGH))
+        {
+
+            // band of interest
+            if (band_power[band] > THRESHOLD * avg_band_power)
+            {
+                printf("(WOW)");
+                wow = 1;
+                if (*lb < 0)
+                {
+                    *lb = band * bandwidth + 0.0001;
+                }
+                *ub = (band + 1) * bandwidth - 0.0001;
+            }
+            else
+            {
+                printf("(meh)");
+            }
+        }
+        else
+        {
+            printf("(meh)");
+        }
+
+        printf("\n");
     }
+
+    printf("Resource usages:\n\
+        User time        %lf seconds\n\
+        System time      %lf seconds\n\
+        Page faults      %ld\n\
+        Page swaps       %ld\n\
+        Blocks of I/O    %ld\n\
+        Signals caught   %ld\n\
+        Context switches %ld\n",
+           rdiff.usertime,
+           rdiff.systime,
+           rdiff.pagefaults,
+           rdiff.pageswaps,
+           rdiff.ioblocks,
+           rdiff.sigs,
+           rdiff.contextswitches);
+
+    printf("Analysis took %llu cycles (%lf seconds) by cycle count, timing overhead=%llu cycles\n"
+           "Note that cycle count only makes sense if the thread stayed on one core\n",
+           tend - tstart, cycles_to_seconds(tend - tstart), timing_overhead());
+    printf("Analysis took %lf seconds by basic timing\n", end - start);
+
+    return wow;
 }
 
 
-// int main(int argc, char* argv[]) {
-//     if (argc != 6) {
-//         printf("Usage: p_band_scan text|bin|mmap signal_file Fs filter_order num_bands\n");
-//         return -1;
-//     }
+int main(int argc, char* argv[]) {
+    if (argc != 8) {
+        printf("usage: p_band_scan text|bin|mmap signal_file Fs filter_order num_bands num_threads num_processors\n");
+        return -1;
+    }
 
-//     char sig_type = toupper(argv[1][0]);
-//     char* sig_file = argv[2];
-//     double Fs = atof(argv[3]);
-//     int filter_order = atoi(argv[4]);
-//     int num_bands = atoi(argv[5]);
+    char sig_type = toupper(argv[1][0]);
+    char* sig_file = argv[2];
+    double Fs = atof(argv[3]);
+    int filter_order = atoi(argv[4]);
+    int num_bands = atoi(argv[5]);
 
-//     signal* sig;
-//     switch (sig_type) {
-//         case 'T': sig = load_text_format_signal(sig_file); break;
-//         case 'B': sig = load_binary_format_signal(sig_file); break;
-//         case 'M': sig = map_binary_format_signal(sig_file); break;
-//         default: printf("Unknown signal type\n"); return -1;
-//     }
+    signal* sig;
+    switch (sig_type) {
+        case 'T': sig = load_text_format_signal(sig_file); break;
+        case 'B': sig = load_binary_format_signal(sig_file); break;
+        case 'M': sig = map_binary_format_signal(sig_file); break;
+        default: printf("Unknown signal type\n"); return -1;
+    }
 
-//     if (!sig) {
-//         printf("Unable to load or map file\n");
-//         return -1;
-//     }
-//     sig->Fs = Fs;
+    if (!sig) {
+        printf("Unable to load or map file\n");
+        return -1;
+    }
+    sig->Fs = Fs;
 
-//     double start = 0, end = 0;
-//     if (analyze_signal(sig, filter_order, num_bands, &start, &end)) {
-//         printf("POSSIBLE ALIENS %lf-%lf HZ (CENTER %lf HZ)\n", start, end, (end + start) / 2.0);
-//     } else {
-//         printf("no aliens\n");
-//     }
+    double start = 0, end = 0;
+    if (analyze_signal(sig, filter_order, num_bands, &start, &end)) {
+        printf("POSSIBLE ALIENS %lf-%lf HZ (CENTER %lf HZ)\n", start, end, (end + start) / 2.0);
+    } else {
+        printf("no aliens\n");
+    }
 
-//     free_signal(sig);
-//     return 0;
-// }
+    free_signal(sig);
+    return 0;
+}
