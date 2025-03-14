@@ -23,6 +23,8 @@
 int num_threads;
 int num_processors;
 int num_bands;
+int filter_order;
+int bandwdith;
 
 //array for each thread
 pthread_t* threadIDs;
@@ -90,11 +92,12 @@ void remove_dc(double *data, int num)
 }
 
 void* worker(void* arg) {
-    ThreadData* data = (ThreadData*) arg; 
-
+    ThreadData* data = (ThreadData*) arg;
+    int bandNum = data->bandNum;
+    int blocksize = num_bands / num_threads;
     // double* filter_coeffs = (double*) malloc((data->filter_order+1)* sizeof(double));
     double filter_coeffs[data->filter_order+1];
-    
+
     //set processor 
     cpu_set_t set;
     CPU_ZERO(&set);
@@ -106,9 +109,6 @@ void* worker(void* arg) {
         pthread_exit(NULL);
     }
 
-
-    int bandNum = data->bandNum;
-    int blocksize = num_bands/num_threads;
 
     //figuring out chunk of band to work on based on band number
     int mystart = bandNum * blocksize;
@@ -138,7 +138,6 @@ void* worker(void* arg) {
                                    &(data->power[i]));
     }
 
-    free(filter_coeffs);
     pthread_exit(NULL);
 }
 
@@ -147,7 +146,7 @@ void* worker(void* arg) {
 int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, double* ub) {
 
     double Fc        = (sig->Fs) / 2;
-    double bandwidth = Fc / num_bands;
+    bandwidth = Fc / num_bands;
 
     remove_dc(sig->data, sig->num_samples);
 
@@ -180,8 +179,8 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
         t_data->sig = sig;
         t_data->bandNum = i;
         t_data->power = band_power;
-        t_data->bandwidth = bandwidth;
-        t_data->filter_order = filter_order;
+        // t_data->bandwidth = bandwidth;
+        // t_data->filter_order = filter_order;
 
         // t_data->power = band_power;
 
@@ -302,7 +301,7 @@ int main(int argc, char* argv[]) {
     char sig_type = toupper(argv[1][0]);
     char* sig_file = argv[2];
     double Fs = atof(argv[3]);
-    int filter_order = atoi(argv[4]);
+    filter_order = atoi(argv[4]);
     num_bands = atoi(argv[5]);
     num_threads = atoi(argv[6]);
     num_processors = atoi(argv[7]);
