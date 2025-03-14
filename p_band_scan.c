@@ -24,7 +24,7 @@ int num_threads;
 int num_processors;
 int num_bands;
 int filter_order;
-int bandwdith;
+int bandwidth;
 
 //array for each thread
 pthread_t* threadIDs;
@@ -126,14 +126,14 @@ void* worker(void* arg) {
     //getting power values for each band block
 
     for (int i = mystart; i < myend; i++){
-        generate_band_pass(data->sig->Fs, i * data->bandwidth + 0.0001,
-                           (i + 1) * data->bandwidth - 0.0001,
-                           data->filter_order, filter_coeffs);
-        hamming_window(data->filter_order, filter_coeffs);
+        generate_band_pass(data->sig->Fs, i * bandwidth + 0.0001,
+                           (i + 1) * bandwidth - 0.0001,
+                           filter_order, filter_coeffs);
+        hamming_window(filter_order, filter_coeffs);
 
         convolve_and_compute_power(data->sig->num_samples,
                                    data->sig->data,
-                                   data->filter_order,
+                                   filter_order,
                                    filter_coeffs,
                                    &(data->power[i]));
     }
