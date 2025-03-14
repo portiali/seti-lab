@@ -90,17 +90,11 @@ void remove_dc(double *data, int num)
 }
 
 void* worker(void* arg) {
-    ThreadData* data = (ThreadData*) arg;
-    double* filter_coeffs = (double*) malloc((data->filter_order+1)* sizeof(double));
+    ThreadData* data = (ThreadData*) arg; 
 
-
-
-
-    if (!filter_coeffs){
-        perror("Memory allocation failed for filter_coeffs");
-        pthread_exit(NULL);
-    }
-
+    // double* filter_coeffs = (double*) malloc((data->filter_order+1)* sizeof(double));
+    double filter_coeffs[data->filter_order+1];
+    
     //set processor 
     cpu_set_t set;
     CPU_ZERO(&set);
