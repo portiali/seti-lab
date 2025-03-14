@@ -24,7 +24,7 @@ int num_threads;
 int num_processors;
 int num_bands;
 int filter_order;
-int bandwidth;
+double bandwidth;
 
 //array for each thread
 pthread_t* threadIDs;
@@ -137,6 +137,7 @@ void* worker(void* arg) {
                                    filter_coeffs,
                                    &(data->power[i]));
     }
+    free(data);
 
     pthread_exit(NULL);
 }
