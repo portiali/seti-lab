@@ -112,6 +112,7 @@ void* worker(void* arg) {
         pthread_exit(NULL);
     }
 
+
     int bandNum = data->bandNum;
     int blocksize = num_bands/num_threads;
 
@@ -160,6 +161,12 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
     printf("signal average power:     %lf\n", signal_power);
 
+    //start timing
+    resources rstart;
+    get_resources(&rstart, THIS_PROCESS);
+    double start = get_seconds();
+    unsigned long long tstart = get_cycle_count();
+
     // double band_power[num_bands];
     // pthread_t* threadIDs[num_bands];  //add
     
@@ -169,10 +176,6 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
     
     //pthread ids
     threadIDs = (pthread_t*) malloc(sizeof(pthread_t) * num_threads);
-    
-
-
-
     double band_power[num_bands];
 
     // parallelize for each band
@@ -206,6 +209,17 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
     }
 
     //all results are stored in thread_data structs
+
+
+    //stop timing
+    unsigned long long tend = get_cycle_count();
+    double end = get_seconds();
+
+    resources rend;
+    get_resources(&rend, THIS_PROCESS);
+
+    resources rdiff;
+    get_resources_diff(&rstart, &rend, &rdiff);
 
     //analyze band reuslts
 
