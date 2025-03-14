@@ -36,8 +36,8 @@ pthread_t* threadIDs;
 typedef struct {
     signal* sig;
     int bandNum;
-    int filter_order;
-    double bandwidth;
+    // int filter_order;
+    // double bandwidth;
     double*  power; //pointer to a part in the final band_power array
 } ThreadData;
 
@@ -96,7 +96,7 @@ void* worker(void* arg) {
     int bandNum = data->bandNum;
     int blocksize = num_bands / num_threads;
     // double* filter_coeffs = (double*) malloc((data->filter_order+1)* sizeof(double));
-    double filter_coeffs[data->filter_order+1];
+    double filter_coeffs[filter_order+1];
 
     //set processor 
     cpu_set_t set;
